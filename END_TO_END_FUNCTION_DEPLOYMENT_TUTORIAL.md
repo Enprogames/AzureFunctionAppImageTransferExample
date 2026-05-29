@@ -198,7 +198,7 @@ This tutorial uses Docker for Native AOT publishing so that Windows, macOS, and 
 Create this layout:
 
 ```text
-image-function-aot/
+AzureFunctionAppImageTransferExample/
   .gitignore
   Directory.Packages.props
   global.json
@@ -206,6 +206,7 @@ image-function-aot/
   infra/
     main.bicep
   scripts/
+    preflight.sh
     deploy-infra.sh
     publish-aot-zip.sh
     get-function-key.sh
@@ -232,11 +233,10 @@ image-function-aot/
       ImageRoundTripTests.cs
 ```
 
-Create the root directory:
+Use the existing `AzureFunctionAppImageTransferExample` directory as the root directory. From the repository root, create the tutorial subdirectories:
 
 ```bash
-mkdir image-function-aot
-cd image-function-aot
+cd AzureFunctionAppImageTransferExample
 mkdir -p infra scripts src/ImageFunctions/{Functions,Storage,Http,Models} tests/ImageFunctions.E2E
 ```
 
@@ -1441,7 +1441,9 @@ Make scripts executable:
 chmod +x scripts/*.sh
 ```
 
-### 10.1 `scripts/deploy-infra.sh`
+### 10.1 `scripts/preflight.sh`
+
+This script validates local tools, Bicep syntax, `RESOURCE_PREFIX`, and Flex Consumption region support before any Azure resources are created.
 
 ```bash
 #!/usr/bin/env bash
@@ -1452,12 +1454,93 @@ set -euo pipefail
 : "${LOCATION:=canadacentral}"
 : "${RESOURCE_PREFIX:=imgfn}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+require_command() {
+  local command_name="$1"
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Required command not found: $command_name" >&2
+    exit 1
+  fi
+}
+
+if [[ ! "$RESOURCE_PREFIX" =~ ^[a-z0-9]{3,10}$ ]]; then
+  echo "RESOURCE_PREFIX must be 3-10 lowercase letters/numbers only." >&2
+  exit 1
+fi
+
+if [[ ! "$LOCATION" =~ ^[a-z0-9]+$ ]]; then
+  echo "LOCATION must use the Azure CLI location name, such as canadacentral or eastus2." >&2
+  exit 1
+fi
+
+require_command az
+require_command docker
+require_command dotnet
+require_command func
+require_command zip
+
 az account set --subscription "$SUBSCRIPTION_ID"
+
+az bicep build \
+  --file "$PROJECT_ROOT/infra/main.bicep" \
+  --stdout >/dev/null
+
+docker buildx version >/dev/null
+dotnet --info >/dev/null
+func --version >/dev/null
+
+if ! az functionapp list-flexconsumption-locations \
+  --query "[?name=='$LOCATION'].name" \
+  -o tsv | grep -Fxq "$LOCATION"; then
+  echo "LOCATION '$LOCATION' was not returned by az functionapp list-flexconsumption-locations." >&2
+  echo "Run: az functionapp list-flexconsumption-locations --output table" >&2
+  exit 1
+fi
+
+echo "Preflight passed."
+```
+
+Run it directly before your first deployment:
+
+```bash
+export SUBSCRIPTION_ID="<subscription-id>"
+export RESOURCE_GROUP="rg-image-fn-dev"
+export LOCATION="canadacentral"
+export RESOURCE_PREFIX="imgfn"
+
+./scripts/preflight.sh
+```
+
+### 10.2 `scripts/deploy-infra.sh`
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${SUBSCRIPTION_ID:?Set SUBSCRIPTION_ID}"
+: "${RESOURCE_GROUP:=rg-image-fn-dev}"
+: "${LOCATION:=canadacentral}"
+: "${RESOURCE_PREFIX:=imgfn}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+export SUBSCRIPTION_ID
+export RESOURCE_GROUP
+export LOCATION
+export RESOURCE_PREFIX
+
+"$SCRIPT_DIR/preflight.sh"
+
+cd "$PROJECT_ROOT"
 
 az group create \
   --name "$RESOURCE_GROUP" \
   --location "$LOCATION" \
-  --tags project=image-function-aot environment=dev
+  --tags project=azure-function-app-image-transfer environment=dev
 
 az deployment group what-if \
   --resource-group "$RESOURCE_GROUP" \
@@ -1504,7 +1587,7 @@ az functionapp list-flexconsumption-locations --output table
 
 Then rerun with a supported `LOCATION`.
 
-### 10.2 `scripts/publish-aot-zip.sh`
+### 10.3 `scripts/publish-aot-zip.sh`
 
 This script uses Docker to build the Linux Native AOT publish directory, zips the publish output, and deploys the ZIP to the existing Function App.
 
@@ -1514,6 +1597,11 @@ set -euo pipefail
 
 : "${RESOURCE_GROUP:=rg-image-fn-dev}"
 : "${FUNCTION_APP_NAME:?Set FUNCTION_APP_NAME}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$PROJECT_ROOT"
 
 ARTIFACT_ROOT=".artifacts"
 PUBLISH_DIR="$ARTIFACT_ROOT/publish/ImageFunctions"
@@ -1559,7 +1647,7 @@ Why this uses Docker instead of `dotnet publish` directly:
 - The Azure-hosted Function App is Linux x64.
 - Building inside the .NET SDK Linux container makes the publish output consistent from Windows, macOS, or Linux developer machines.
 
-### 10.3 `scripts/get-function-key.sh`
+### 10.4 `scripts/get-function-key.sh`
 
 Cloud endpoints use `AuthorizationLevel.Function`, so E2E cloud tests need a function key.
 
@@ -1585,7 +1673,7 @@ export FUNCTION_APP_NAME="<function-app-name>"
 export FUNCTION_KEY="$(./scripts/get-function-key.sh)"
 ```
 
-### 10.4 `scripts/teardown-cloud.sh`
+### 10.5 `scripts/teardown-cloud.sh`
 
 ```bash
 #!/usr/bin/env bash
