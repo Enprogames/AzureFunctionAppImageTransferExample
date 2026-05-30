@@ -38,3 +38,72 @@ var imageStorageName = take('${resourcePrefix}img${uniqueSuffix}', 24)
 
 var functionAppRuntime = 'dotnet-isolated'
 var functionAppRuntimeVersion = '10'
+
+resource functionIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: identityName
+  location: location
+}
+
+resource hostStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: hostStorageName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource imageStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: imageStorageName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource imageBlobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  name: 'default'
+  parent: imageStorage
+}
+
+resource imageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  name: imageContainerName
+  parent: imageBlobService
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
