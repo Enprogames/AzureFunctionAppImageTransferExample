@@ -22,6 +22,9 @@ The key design decisions are:
 - Use **managed identity + Azure RBAC** in Azure, not storage keys or connection strings.
 - Use **Azurite + connection strings only for local development/testing**.
 - Use **separate host storage and application image storage**. Host storage contains Functions runtime/deployment/key material; image storage contains your uploaded test images. This separation makes least privilege easier to reason about.
+- Keep production infrastructure explicit. Bicep is verbose, but it makes identity, RBAC scope, storage separation, deployment storage, and scale settings reviewable.
+- Treat .NET Aspire as an optional developer harness, not the production source of truth for this starter.
+- Preserve adapter boundaries so future AWS Lambda/S3 support can be added without rewriting application behavior.
 
 ## Research-backed platform notes
 
@@ -37,6 +40,14 @@ The tutorial is based on current Microsoft guidance and package information:
 - Resource-group deletion is the cleanest teardown model for isolated starter environments.
 
 See the **References** section at the end for the source links.
+
+## Architecture stance
+
+This tutorial intentionally uses Azure Functions Flex Consumption, Bicep, managed identity, and explicit RBAC as the production deployment blueprint.
+
+.NET Aspire is valuable for local orchestration, dashboards, logs, traces, emulator wiring, and developer experience. It is not the primary deployment mechanism in this tutorial because the current Azure Functions + Aspire deployment path is container-oriented, while this tutorial targets Flex Consumption package deployment.
+
+AWS Lambda parity is not a goal of this tutorial. The code should still preserve clean application boundaries so an AWS adapter can be added later, but Azure correctness comes first.
 
 ---
 
@@ -67,7 +78,7 @@ Why this is the best starter path:
 - **Least privilege is straightforward**: scope the deployment identity to a single resource group instead of a whole subscription.
 - **Teardown is easy**: put every resource in one dedicated resource group and delete the resource group.
 
-Use **Azure Developer CLI (`azd`)** later if you want a one-command developer experience (`azd up`) that wraps provisioning and deployment. Use **Terraform** if your organization already standardizes on Terraform, needs multi-cloud state/governance workflows, or uses Terraform Cloud/Enterprise. For a small Azure-only starter with local deployment, Bicep is the simplest high-quality choice.
+Use **Azure Developer CLI (`azd`)** later if you want a one-command Azure workflow over the same infrastructure concepts. Use **.NET Aspire** later if you want local orchestration, dashboarding, service discovery, and emulator/container coordination. For this tutorial, Aspire should be an optional developer harness rather than the production deployment source of truth. Use **Terraform** if your organization standardizes on Terraform state/governance workflows. For this Azure-first starter, Bicep remains the most direct production infrastructure contract.
 
 ### 1.2 How to ensure local deployment only has necessary permissions
 
@@ -1965,7 +1976,17 @@ The Docker Compose file uses a custom Azurite account named `localstore`. If you
 
 ---
 
-## 15. Production hardening checklist
+## 15. Optional future Aspire developer harness
+
+A future version of this starter can add an Aspire AppHost to orchestrate local dependencies, expose dashboard logs/traces, and reduce manual local setup.
+
+The AppHost must remain a composition harness only. It must not contain image-transfer business logic. Production deployment in this tutorial remains Bicep + Azure Functions Flex Consumption.
+
+Do not switch this tutorial to Aspire-driven deployment unless you intentionally accept a container-oriented Azure Functions or Azure Container Apps deployment model instead of Flex Consumption package deployment.
+
+---
+
+## 16. Production hardening checklist
 
 This starter is intentionally small. Before using the pattern for production, consider:
 
@@ -1983,7 +2004,7 @@ This starter is intentionally small. Before using the pattern for production, co
 
 ---
 
-## 16. Complete command summary
+## 17. Complete command summary
 
 Local Docker test:
 
@@ -2035,7 +2056,22 @@ rm -rf .artifacts
 
 ---
 
-## 17. References
+## 18. Open questions
+
+- Is Native AOT mandatory, or should the project use it only while trim/AOT warnings remain manageable?
+- Should production uploads pass through the Function body, or should the API issue short-lived direct-to-blob upload URLs?
+- What authentication model should replace Function keys for user-facing APIs: Entra ID, Easy Auth, API Management, or application JWT validation?
+- What scale target defines "massive": request rate, image size, storage volume, latency, region count, or concurrency?
+- Should private networking be required from the first production version?
+- Should dev/test/prod live in separate subscriptions or separate resource groups?
+- Should CI/CD with workload identity federation be part of the starter or a follow-up guide?
+- Should the future portability target be AWS Lambda/S3, Azure Container Apps, Kubernetes, or only clean application-layer ports?
+- What observability baseline is required: Application Insights only, dashboards and alerts, distributed tracing, or cost/quota alerts?
+- What validation is required for uploaded files: MIME sniffing, image decoding, malware scanning, size limits, or content moderation?
+
+---
+
+## 19. References
 
 - Azure Functions isolated worker guide: https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide
 - Azure Functions runtime versions overview: https://learn.microsoft.com/en-us/azure/azure-functions/functions-versions
@@ -2053,5 +2089,9 @@ rm -rf .artifacts
 - Assign Azure roles for Blob data access: https://learn.microsoft.com/en-us/azure/storage/blobs/assign-azure-role-data-access
 - Azurite local storage emulator: https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite
 - Native AOT deployment overview: https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/
+- Azure Functions with Aspire: https://learn.microsoft.com/en-au/azure/azure-functions/dotnet-aspire-integration
+- Aspire local Azure provisioning: https://aspire.dev/integrations/cloud/azure/local-provisioning/
+- Azure Functions Linux container support: https://learn.microsoft.com/en-us/azure/azure-functions/container-concepts
+- AWS .NET Aspire integration: https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html
 - Azure SDK for .NET package index: https://learn.microsoft.com/en-us/dotnet/azure/sdk/packages
 - Azure Functions .NET isolated Docker image tags: https://hub.docker.com/r/microsoft/azure-functions-dotnet-isolated

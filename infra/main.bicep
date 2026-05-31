@@ -107,3 +107,16 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     WorkspaceResourceId: logAnalytics.id
   }
 }
+
+resource flexPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
+  name: planName
+  location: location
+  sku: {
+    name: 'FC1'
+    tier: 'FlexConsumption'
+  }
+  kind: 'functionapp'
+  properties: {
+    reserved: true
+  }
+}
