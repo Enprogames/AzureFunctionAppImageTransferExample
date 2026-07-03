@@ -17,6 +17,21 @@ services:
     volumes:
       - azurite-data:/data
 
+  api:
+    build:
+      context: .
+      dockerfile: src/ImageApi/Dockerfile
+      target: runtime
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      Authentication__UseDevelopmentUser: "true"
+      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account-key-here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
+      ImageStorageContainerName: "images"
+    depends_on:
+      - azurite
+
   functions:
     build:
       context: .
