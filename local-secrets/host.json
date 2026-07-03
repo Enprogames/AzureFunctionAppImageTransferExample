@@ -1,0 +1,15 @@
+{
+  "masterKey": {
+    "name": "master",
+    "value": "local-dev-master-key",
+    "encrypted": false
+  },
+  "functionKeys": [
+    {
+      "name": "default",
+      "value": "local-dev-function-key",
+      "encrypted": false
+    }
+  ],
+  "systemKeys": []
+}

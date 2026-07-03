@@ -1,0 +1,40 @@
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: >
+      azurite
+      --blobHost 0.0.0.0
+      --queueHost 0.0.0.0
+      --tableHost 0.0.0.0
+      --skipApiVersionCheck
+      --disableTelemetry
+    environment:
+      AZURITE_ACCOUNTS: "localstore:obaZPyQhWYVTNDKYRcjb8O5HQMEfyIbbb6jOzaUSkYQmYCe18bzXILx3gkN4J4BSdIaZpdB+FFyzu19tpaj5pw=="
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - azurite-data:/data
+
+  functions:
+    build:
+      context: .
+      dockerfile: src/ImageFunctions/Dockerfile
+      target: runtime
+    ports:
+      - "7071:80"
+    environment:
+      FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
+      AzureWebJobsStorage: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
+      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
+      ImageStorageContainerName: "images"
+      AzureWebJobsSecretStorageType: "files"
+      AzureFunctionsJobHost__Logging__Console__IsEnabled: "true"
+    depends_on:
+      - azurite
+    volumes:
+      - ./local-secrets/host.json:/azure-functions-host/Secrets/host.json:ro
+
+volumes:
+  azurite-data:

@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=;BlobEndpoint=http://127.0.0.1:10000/localstore;QueueEndpoint=http://127.0.0.1:10001/localstore;TableEndpoint=http://127.0.0.1:10002/localstore;",
+    "ImageStorageConnectionString": "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=;BlobEndpoint=http://127.0.0.1:10000/localstore;QueueEndpoint=http://127.0.0.1:10001/localstore;TableEndpoint=http://127.0.0.1:10002/localstore;",
+    "ImageStorageContainerName": "images"
+  }
+}

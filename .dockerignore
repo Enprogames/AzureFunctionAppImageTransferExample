@@ -1,0 +1,11 @@
+.git/
+.artifacts/
+bin/
+obj/
+**/bin/
+**/obj/
+TestResults/
+local.settings.json
+*.user
+*.suo
+*.binlog
