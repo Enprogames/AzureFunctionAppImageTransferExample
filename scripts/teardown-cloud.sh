@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${RESOURCE_GROUP:=rg-image-fn-dev}"
+: "${RESOURCE_GROUP:=rg-image-api-dev}"
 
 az group delete \
   --name "$RESOURCE_GROUP" \

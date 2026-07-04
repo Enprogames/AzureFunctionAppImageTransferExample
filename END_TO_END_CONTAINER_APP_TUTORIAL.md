@@ -136,6 +136,7 @@ Create this layout:
 ```text
 ImageTransferApi/
   .dockerignore
+  .env.example
   .gitignore
   Directory.Packages.props
   docker-compose.yml
@@ -151,6 +152,7 @@ ImageTransferApi/
     build-image.sh
     deploy-infra.sh
     deploy-registry.sh
+    init-local-env.ps1
     preflight.sh
     smoke-test.sh
     teardown-cloud.sh
@@ -888,7 +890,28 @@ ENTRYPOINT ["/app/ImageApi"]
 Use the normal `runtime` target first. Once local behavior is stable, test the
 `aot-runtime` target with the same E2E tests.
 
-### 7.2 `docker-compose.yml`
+### 7.2 `.env.example`
+
+Do not commit Azurite account keys. Keep the committed example file boring and
+generate the real `.env` file locally.
+
+```text
+# Use this file as a reference. Prefer running scripts/init-local-env.ps1.
+# If you copy it to .env by hand, replace AZURITE_ACCOUNT_KEY first.
+# .env is intentionally ignored because the key is generated locally.
+AZURITE_ACCOUNT_NAME=localstore
+AZURITE_ACCOUNT_KEY=generate-with-scripts-init-local-env
+```
+
+Generate the real local `.env` file:
+
+```powershell
+.\scripts\init-local-env.ps1
+```
+
+The generated `.env` file is ignored by Git.
+
+### 7.3 `docker-compose.yml`
 
 ```yaml
 services:
@@ -902,7 +925,7 @@ services:
       --skipApiVersionCheck
       --disableTelemetry
     environment:
-      AZURITE_ACCOUNTS: "localstore:obaZPyQhWYVTNDKYRcjb8O5HQMEfyIbbb6jOzaUSkYQmYCe18bzXILx3gkN4J4BSdIaZpdB+FFyzu19tpaj5pw=="
+      AZURITE_ACCOUNTS: "${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1}:${AZURITE_ACCOUNT_KEY:?Run scripts/init-local-env.ps1}"
     ports:
       - "10000:10000"
       - "10001:10001"
@@ -920,7 +943,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       Authentication__UseDevelopmentUser: "true"
-      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
+      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};AccountKey=${AZURITE_ACCOUNT_KEY:?Run scripts/init-local-env.ps1};BlobEndpoint=http://azurite:10000/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};QueueEndpoint=http://azurite:10001/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};TableEndpoint=http://azurite:10002/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};"
       ImageStorageContainerName: "images"
     depends_on:
       - azurite
@@ -931,9 +954,10 @@ volumes:
 
 Run locally:
 
-```bash
+```powershell
+.\scripts\init-local-env.ps1
 docker compose up -d --build
-curl -i http://localhost:8080/api/health
+curl.exe -i http://localhost:8080/api/health
 ```
 
 Expected health response:
@@ -1128,6 +1152,10 @@ Run it with Azurite:
 ```bash
 docker compose up -d azurite
 
+set -a
+source .env
+set +a
+
 docker run --rm \
   --name image-api-aot \
   --network "$(basename "$PWD")_default" \
@@ -1135,7 +1163,7 @@ docker run --rm \
   -e ASPNETCORE_ENVIRONMENT=Development \
   -e Authentication__UseDevelopmentUser=true \
   -e ImageStorageContainerName=images \
-  -e "ImageStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;" \
+  -e "ImageStorageConnectionString=DefaultEndpointsProtocol=http;AccountName=${AZURITE_ACCOUNT_NAME};AccountKey=${AZURITE_ACCOUNT_KEY};BlobEndpoint=http://azurite:10000/${AZURITE_ACCOUNT_NAME};QueueEndpoint=http://azurite:10001/${AZURITE_ACCOUNT_NAME};TableEndpoint=http://azurite:10002/${AZURITE_ACCOUNT_NAME};" \
   image-api:aot
 ```
 
@@ -1512,24 +1540,51 @@ chmod +x scripts/*.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
+: "${SUBSCRIPTION_ID:?Set SUBSCRIPTION_ID}"
+: "${RESOURCE_GROUP:=rg-image-api-dev}"
+: "${LOCATION:=canadacentral}"
+: "${RESOURCE_PREFIX:=imgapi}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 require_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Missing required command: $1" >&2
+  local command_name="$1"
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Required command not found: $command_name" >&2
     exit 1
   fi
 }
 
-require_command dotnet
-require_command docker
+if [[ ! "$RESOURCE_PREFIX" =~ ^[a-z0-9]{3,10}$ ]]; then
+  echo "RESOURCE_PREFIX must be 3-10 lowercase letters/numbers only." >&2
+  exit 1
+fi
+
+if [[ ! "$LOCATION" =~ ^[a-z0-9]+$ ]]; then
+  echo "LOCATION must use the Azure CLI location name, such as canadacentral or eastus2." >&2
+  exit 1
+fi
+
 require_command az
-require_command git
+require_command docker
+require_command dotnet
 
+az account set --subscription "$SUBSCRIPTION_ID"
+
+az bicep build \
+  --file "$PROJECT_ROOT/infra/registry.bicep" \
+  --stdout >/dev/null
+
+az bicep build \
+  --file "$PROJECT_ROOT/infra/main.bicep" \
+  --stdout >/dev/null
+
+docker buildx version >/dev/null
 dotnet --info >/dev/null
-docker version >/dev/null
-az version >/dev/null
-az bicep version >/dev/null
 
-echo "Preflight checks passed."
+echo "Preflight passed."
 ```
 
 ### 12.2 `scripts/deploy-registry.sh`
@@ -1607,6 +1662,7 @@ Use `DOCKER_TARGET=runtime` if you want to deploy the normal non-AOT image.
 #!/usr/bin/env bash
 set -euo pipefail
 
+: "${SUBSCRIPTION_ID:?Set SUBSCRIPTION_ID}"
 : "${RESOURCE_GROUP:=rg-image-api-dev}"
 : "${LOCATION:=canadacentral}"
 : "${RESOURCE_PREFIX:=imgapi}"
@@ -1616,9 +1672,28 @@ set -euo pipefail
 : "${AUTHENTICATION_AUDIENCE:?Set AUTHENTICATION_AUDIENCE, usually api://<api-client-id>.}"
 : "${MIN_REPLICAS:=0}"
 : "${MAX_REPLICAS:=3}"
+: "${DEPLOYMENT_NAME:=main}"
 
-az deployment group create \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+export SUBSCRIPTION_ID
+export RESOURCE_GROUP
+export LOCATION
+export RESOURCE_PREFIX
+
+"$SCRIPT_DIR/preflight.sh"
+
+cd "$PROJECT_ROOT"
+
+az group create \
+  --name "$RESOURCE_GROUP" \
+  --location "$LOCATION" \
+  --tags project=image-transfer-api environment=dev
+
+az deployment group what-if \
   --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
   --template-file infra/main.bicep \
   --parameters \
     location="$LOCATION" \
@@ -1630,12 +1705,33 @@ az deployment group create \
     minReplicas="$MIN_REPLICAS" \
     maxReplicas="$MAX_REPLICAS"
 
+az deployment group create \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
+  --template-file infra/main.bicep \
+  --parameters \
+    location="$LOCATION" \
+    resourcePrefix="$RESOURCE_PREFIX" \
+    acrName="$ACR_NAME" \
+    containerImage="$CONTAINER_IMAGE" \
+    authenticationTenantId="$AUTHENTICATION_TENANT_ID" \
+    authenticationAudience="$AUTHENTICATION_AUDIENCE" \
+    minReplicas="$MIN_REPLICAS" \
+    maxReplicas="$MAX_REPLICAS"
+
+CONTAINER_APP_NAME="$(az deployment group show \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
+  --query properties.outputs.containerAppName.value \
+  -o tsv)"
+
 API_BASE_URL="$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
-  --name main \
+  --name "$DEPLOYMENT_NAME" \
   --query properties.outputs.apiBaseUrl.value \
   -o tsv)"
 
+echo "Container App: $CONTAINER_APP_NAME"
 echo "API_BASE_URL=$API_BASE_URL"
 ```
 
@@ -1670,7 +1766,8 @@ echo "Deletion started for resource group $RESOURCE_GROUP"
 
 Start the API and Azurite:
 
-```bash
+```powershell
+.\scripts\init-local-env.ps1
 docker compose up -d --build
 ```
 
@@ -1971,9 +2068,10 @@ Do not add all of this to the first PoC. Use it as a growth map.
 
 Local:
 
-```bash
+```powershell
+.\scripts\init-local-env.ps1
 docker compose up -d --build
-curl -i http://localhost:8080/api/health
+curl.exe -i http://localhost:8080/api/health
 dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
 docker compose down -v
 ```

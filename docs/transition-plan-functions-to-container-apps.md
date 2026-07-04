@@ -227,15 +227,16 @@ Remove:
 Keep:
 
 - Azurite;
-- the local custom storage account;
+- the local custom storage account, with its key generated into ignored `.env`;
 - `--skipApiVersionCheck`;
 - persisted Azurite volume.
 
 Verification gate:
 
-```bash
+```powershell
+.\scripts\init-local-env.ps1
 docker compose up -d --build
-curl -i http://localhost:8080/api/health
+curl.exe -i http://localhost:8080/api/health
 docker compose logs api
 ```
 
@@ -425,8 +426,9 @@ Docs:
 
 ## 15. Rollback And Fallback
 
-During migration, keep the old Functions project until the new API has passed
-local E2E tests.
+After the new API passes local E2E tests, remove the old Functions project from
+the active tree. Keep the old implementation in Git history rather than carrying
+two live app models.
 
 Fallback options:
 

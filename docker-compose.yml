@@ -9,7 +9,7 @@ services:
       --skipApiVersionCheck
       --disableTelemetry
     environment:
-      AZURITE_ACCOUNTS: "localstore:obaZPyQhWYVTNDKYRcjb8O5HQMEfyIbbb6jOzaUSkYQmYCe18bzXILx3gkN4J4BSdIaZpdB+FFyzu19tpaj5pw=="
+      AZURITE_ACCOUNTS: "${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1}:${AZURITE_ACCOUNT_KEY:?Run scripts/init-local-env.ps1}"
     ports:
       - "10000:10000"
       - "10001:10001"
@@ -27,29 +27,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       Authentication__UseDevelopmentUser: "true"
-      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account-key-here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
+      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};AccountKey=${AZURITE_ACCOUNT_KEY:?Run scripts/init-local-env.ps1};BlobEndpoint=http://azurite:10000/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};QueueEndpoint=http://azurite:10001/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};TableEndpoint=http://azurite:10002/${AZURITE_ACCOUNT_NAME:?Run scripts/init-local-env.ps1};"
       ImageStorageContainerName: "images"
     depends_on:
       - azurite
-
-  functions:
-    build:
-      context: .
-      dockerfile: src/ImageFunctions/Dockerfile
-      target: runtime
-    ports:
-      - "7071:80"
-    environment:
-      FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
-      AzureWebJobsStorage: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
-      ImageStorageConnectionString: "DefaultEndpointsProtocol=http;AccountName=localstore;AccountKey=<account key here>;BlobEndpoint=http://azurite:10000/localstore;QueueEndpoint=http://azurite:10001/localstore;TableEndpoint=http://azurite:10002/localstore;"
-      ImageStorageContainerName: "images"
-      AzureWebJobsSecretStorageType: "files"
-      AzureFunctionsJobHost__Logging__Console__IsEnabled: "true"
-    depends_on:
-      - azurite
-    volumes:
-      - ./local-secrets/host.json:/azure-functions-host/Secrets/host.json:ro
 
 volumes:
   azurite-data:

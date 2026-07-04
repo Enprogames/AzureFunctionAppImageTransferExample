@@ -2,9 +2,9 @@
 set -euo pipefail
 
 : "${SUBSCRIPTION_ID:?Set SUBSCRIPTION_ID}"
-: "${RESOURCE_GROUP:=rg-image-fn-dev}"
+: "${RESOURCE_GROUP:=rg-image-api-dev}"
 : "${LOCATION:=canadacentral}"
-: "${RESOURCE_PREFIX:=imgfn}"
+: "${RESOURCE_PREFIX:=imgapi}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -31,10 +31,12 @@ fi
 require_command az
 require_command docker
 require_command dotnet
-require_command func
-require_command zip
 
 az account set --subscription "$SUBSCRIPTION_ID"
+
+az bicep build \
+  --file "$PROJECT_ROOT/infra/registry.bicep" \
+  --stdout >/dev/null
 
 az bicep build \
   --file "$PROJECT_ROOT/infra/main.bicep" \
@@ -42,14 +44,5 @@ az bicep build \
 
 docker buildx version >/dev/null
 dotnet --info >/dev/null
-func --version >/dev/null
-
-if ! az functionapp list-flexconsumption-locations \
-  --query "[?name=='$LOCATION'].name" \
-  -o tsv | grep -Fxq "$LOCATION"; then
-  echo "LOCATION '$LOCATION' was not returned by az functionapp list-flexconsumption-locations." >&2
-  echo "Run: az functionapp list-flexconsumption-locations --output table" >&2
-  exit 1
-fi
 
 echo "Preflight passed."

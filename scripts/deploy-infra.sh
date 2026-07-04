@@ -2,9 +2,16 @@
 set -euo pipefail
 
 : "${SUBSCRIPTION_ID:?Set SUBSCRIPTION_ID}"
-: "${RESOURCE_GROUP:=rg-image-fn-dev}"
+: "${RESOURCE_GROUP:=rg-image-api-dev}"
 : "${LOCATION:=canadacentral}"
-: "${RESOURCE_PREFIX:=imgfn}"
+: "${RESOURCE_PREFIX:=imgapi}"
+: "${ACR_NAME:?Set ACR_NAME.}"
+: "${CONTAINER_IMAGE:?Set CONTAINER_IMAGE, including registry and tag.}"
+: "${AUTHENTICATION_TENANT_ID:?Set AUTHENTICATION_TENANT_ID.}"
+: "${AUTHENTICATION_AUDIENCE:?Set AUTHENTICATION_AUDIENCE, usually api://<api-client-id>.}"
+: "${MIN_REPLICAS:=0}"
+: "${MAX_REPLICAS:=3}"
+: "${DEPLOYMENT_NAME:=main}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -21,29 +28,47 @@ cd "$PROJECT_ROOT"
 az group create \
   --name "$RESOURCE_GROUP" \
   --location "$LOCATION" \
-  --tags project=azure-function-app-image-transfer environment=dev
+  --tags project=image-transfer-api environment=dev
 
 az deployment group what-if \
   --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
   --template-file infra/main.bicep \
-  --parameters location="$LOCATION" resourcePrefix="$RESOURCE_PREFIX"
+  --parameters \
+    location="$LOCATION" \
+    resourcePrefix="$RESOURCE_PREFIX" \
+    acrName="$ACR_NAME" \
+    containerImage="$CONTAINER_IMAGE" \
+    authenticationTenantId="$AUTHENTICATION_TENANT_ID" \
+    authenticationAudience="$AUTHENTICATION_AUDIENCE" \
+    minReplicas="$MIN_REPLICAS" \
+    maxReplicas="$MAX_REPLICAS"
 
 az deployment group create \
   --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
   --template-file infra/main.bicep \
-  --parameters location="$LOCATION" resourcePrefix="$RESOURCE_PREFIX"
+  --parameters \
+    location="$LOCATION" \
+    resourcePrefix="$RESOURCE_PREFIX" \
+    acrName="$ACR_NAME" \
+    containerImage="$CONTAINER_IMAGE" \
+    authenticationTenantId="$AUTHENTICATION_TENANT_ID" \
+    authenticationAudience="$AUTHENTICATION_AUDIENCE" \
+    minReplicas="$MIN_REPLICAS" \
+    maxReplicas="$MAX_REPLICAS"
 
-FUNCTION_APP_NAME="$(az deployment group show \
+CONTAINER_APP_NAME="$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.functionAppName.value \
+  --name "$DEPLOYMENT_NAME" \
+  --query properties.outputs.containerAppName.value \
   -o tsv)"
 
-FUNCTION_BASE_URL="$(az deployment group show \
+API_BASE_URL="$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
-  --name main \
-  --query properties.outputs.functionBaseUrl.value \
+  --name "$DEPLOYMENT_NAME" \
+  --query properties.outputs.apiBaseUrl.value \
   -o tsv)"
 
-echo "Function App: $FUNCTION_APP_NAME"
-echo "Function base URL: $FUNCTION_BASE_URL"
+echo "Container App: $CONTAINER_APP_NAME"
+echo "API_BASE_URL=$API_BASE_URL"
