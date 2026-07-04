@@ -4,6 +4,8 @@ using System.Text.Json.Serialization.Metadata;
 using ImageApi.Auth;
 using ImageApi.Models;
 using ImageApi.Storage;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -21,6 +23,29 @@ var useDevelopmentAuth =
         builder.Configuration["Authentication:UseDevelopmentUser"],
         "true",
         StringComparison.OrdinalIgnoreCase);
+
+if (!useDevelopmentAuth)
+{
+    var tenantId = builder.Configuration["Authentication:TenantId"];
+    var audience = builder.Configuration["Authentication:Audience"];
+
+    if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(audience))
+    {
+        throw new InvalidOperationException(
+            "Authentication:TenantId and Authentication:Audience are required outside development auth mode.");
+    }
+
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = $"https://login.microsoftonline.com/{tenantId}/v2.0";
+            options.Audience = audience;
+            options.MapInboundClaims = false;
+        });
+
+    builder.Services.AddAuthorization();
+}
 
 var app = builder.Build();
 
@@ -48,24 +73,17 @@ if (useDevelopmentAuth)
 }
 else
 {
-    app.Use(async (context, next) =>
-    {
-        if (context.Request.Path.StartsWithSegments("/api/images"))
-        {
-            await WriteErrorAsync(
-                context,
-                StatusCodes.Status501NotImplemented,
-                "Cloud bearer-token authentication will be added in a later slice.");
-            return;
-        }
-
-        await next(context);
-    });
+    app.UseAuthentication();
+    app.UseAuthorization();
 }
 
 app.MapGet("/api/health", (RequestDelegate)HealthAsync);
 
 var images = app.MapGroup("/api/images");
+if (!useDevelopmentAuth)
+{
+    images.RequireAuthorization();
+}
 
 images.MapGet("", (RequestDelegate)ListImagesAsync);
 images.MapPost("", (RequestDelegate)UploadImageAsync);
