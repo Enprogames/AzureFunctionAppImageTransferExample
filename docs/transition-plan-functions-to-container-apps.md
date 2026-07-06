@@ -260,7 +260,7 @@ Update the test behavior:
 Verification gate:
 
 ```bash
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 ## 10. Stage 7: Prove Normal Container Then AOT Container
@@ -269,7 +269,7 @@ First make the normal container green:
 
 ```bash
 docker compose up -d --build
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 Then test the AOT target:

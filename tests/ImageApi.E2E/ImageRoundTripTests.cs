@@ -26,9 +26,11 @@ public sealed class ImageRoundTripTests
             Timeout = TimeSpan.FromSeconds(60)
         };
 
-        await WaitForHealthAsync(client, baseUrl);
+        var cancellationToken = TestContext.Current.CancellationToken;
 
-        using var response = await client.GetAsync(new Uri($"{baseUrl}/images"));
+        await WaitForHealthAsync(client, baseUrl, cancellationToken);
+
+        using var response = await client.GetAsync(new Uri($"{baseUrl}/images"), cancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -43,7 +45,9 @@ public sealed class ImageRoundTripTests
             Timeout = TimeSpan.FromSeconds(60)
         };
 
-        await WaitForHealthAsync(client, baseUrl);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await WaitForHealthAsync(client, baseUrl, cancellationToken);
 
         var expectedHash = Sha256Hex(TestPng);
 
@@ -53,8 +57,8 @@ public sealed class ImageRoundTripTests
         using var uploadRequest = CreateRequest(HttpMethod.Post, new Uri($"{baseUrl}/images"));
         uploadRequest.Content = uploadContent;
 
-        using var uploadResponse = await client.SendAsync(uploadRequest);
-        var uploadBody = await uploadResponse.Content.ReadAsStringAsync();
+        using var uploadResponse = await client.SendAsync(uploadRequest, cancellationToken);
+        var uploadBody = await uploadResponse.Content.ReadAsStringAsync(cancellationToken);
         Assert.True(uploadResponse.IsSuccessStatusCode, uploadBody);
 
         var upload = JsonSerializer.Deserialize<UploadImageResponse>(
@@ -68,10 +72,10 @@ public sealed class ImageRoundTripTests
             HttpMethod.Get,
             new Uri($"{baseUrl}/images/{Uri.EscapeDataString(upload.ImageId)}"));
 
-        using var downloadResponse = await client.SendAsync(downloadRequest);
+        using var downloadResponse = await client.SendAsync(downloadRequest, cancellationToken);
         Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
 
-        var downloadedBytes = await downloadResponse.Content.ReadAsByteArrayAsync();
+        var downloadedBytes = await downloadResponse.Content.ReadAsByteArrayAsync(cancellationToken);
         var actualHash = Sha256Hex(downloadedBytes);
 
         Assert.Equal(expectedHash, actualHash);
@@ -109,7 +113,7 @@ public sealed class ImageRoundTripTests
         return request;
     }
 
-    private static async Task WaitForHealthAsync(HttpClient client, string baseUrl)
+    private static async Task WaitForHealthAsync(HttpClient client, string baseUrl, CancellationToken cancellationToken)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(60);
         var healthUri = new Uri($"{baseUrl}/health");
@@ -118,7 +122,7 @@ public sealed class ImageRoundTripTests
         {
             try
             {
-                using var response = await client.GetAsync(healthUri);
+                using var response = await client.GetAsync(healthUri, cancellationToken);
                 if (response.IsSuccessStatusCode)
                 {
                     return;
@@ -128,12 +132,12 @@ public sealed class ImageRoundTripTests
             {
                 // The container may still be starting.
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 // The container may still be starting.
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(2));
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         }
 
         throw new TimeoutException($"API did not become healthy at {healthUri}.");

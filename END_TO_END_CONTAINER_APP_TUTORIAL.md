@@ -191,6 +191,9 @@ Pin the SDK family so local and container builds agree.
   "sdk": {
     "version": "10.0.100",
     "rollForward": "latestFeature"
+  },
+  "test": {
+    "runner": "Microsoft.Testing.Platform"
   }
 }
 ```
@@ -203,16 +206,38 @@ Use central package management so package versions are easy to review.
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
+  <!-- Direct package references. -->
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
-    <PackageVersion Include="Azure.Storage.Blobs" Version="12.27.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
 
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
-    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <!-- Runtime transitive pins that are compatible with the direct package graph. -->
+  <ItemGroup>
+    <PackageVersion Include="Azure.Core" Version="1.60.0" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Bcl.Cryptography" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.85.2" />
+    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.85.2" />
+    <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Logging" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.1" />
+    <PackageVersion Include="System.ClientModel" Version="1.14.0" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <PackageVersion Include="System.IO.Hashing" Version="10.0.9" />
+    <PackageVersion Include="System.Memory.Data" Version="10.0.9" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
   </ItemGroup>
 </Project>
 ```
@@ -984,8 +1009,8 @@ HTTP/1.1 200 OK
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
-    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
   </ItemGroup>
 </Project>
 ```
@@ -1127,7 +1152,7 @@ Run the local E2E test:
 
 ```bash
 docker compose up -d --build
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 docker compose down -v
 ```
 
@@ -1170,7 +1195,7 @@ docker run --rm \
 In another terminal:
 
 ```bash
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 Treat AOT warnings as meaningful. If the AOT image behaves differently from the
@@ -1792,7 +1817,7 @@ curl -i -X POST \
 Run the E2E test:
 
 ```bash
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 Tear down local containers:
@@ -1891,7 +1916,7 @@ approved developer auth flow. Then run:
 
 ```bash
 export API_ACCESS_TOKEN="<access-token>"
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 The test uses `API_ACCESS_TOKEN` for cloud requests and `X-Dev-User` only for
@@ -2072,7 +2097,7 @@ Local:
 .\scripts\init-local-env.ps1
 docker compose up -d --build
 curl.exe -i http://localhost:8080/api/health
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 docker compose down -v
 ```
 
@@ -2113,7 +2138,7 @@ export API_BASE_URL="$(az deployment group show \
 ./scripts/smoke-test.sh
 
 export API_ACCESS_TOKEN="<access-token>"
-dotnet test tests/ImageApi.E2E/ImageApi.E2E.csproj
+dotnet test --project tests/ImageApi.E2E/ImageApi.E2E.csproj
 ```
 
 Teardown:
