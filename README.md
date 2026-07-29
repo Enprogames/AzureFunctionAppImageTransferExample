@@ -6,7 +6,7 @@ authenticated image-transfer API on Azure.
 The canonical tutorial starts from a clean repository and builds this target
 architecture:
 
-- .NET 10 and C# 14;
+- .NET 11 preview and C# 15 preview;
 - ASP.NET Core Minimal API;
 - Azure Container Apps;
 - Azure Blob Storage;
@@ -22,9 +22,8 @@ architecture:
   is the canonical start-from-scratch guide.
 - [Architecture decision](docs/architecture-decision-container-apps.md)
   explains the main platform choices.
-- [Transition plan](docs/transition-plan-functions-to-container-apps.md)
-  is only for migrating this repository from the earlier Azure Functions
-  prototype.
+- [Completed transition note](docs/transition-plan-functions-to-container-apps.md)
+  records the move from the earlier Azure Functions prototype.
 - [Superseded Functions tutorial](END_TO_END_FUNCTION_DEPLOYMENT_TUTORIAL.md)
   remains only as a signpost away from the old direction.
 

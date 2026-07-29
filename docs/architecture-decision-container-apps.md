@@ -7,7 +7,7 @@ Status: accepted as the target direction
 ## Context
 
 The project started as an Azure Functions tutorial for uploading and downloading
-images with .NET 10, C# 14, Bicep, Docker, managed identity, and Native AOT.
+images with Bicep, Docker, managed identity, and Native AOT.
 
 Local testing showed that the Azure Functions isolated worker path is not a
 good fit for Native AOT in this project. The failure was not in the image
@@ -160,7 +160,6 @@ Tradeoffs:
 The canonical tutorial should read as a fresh start-from-scratch guide for the
 Container Apps design.
 
-Repository-specific migration work belongs in
-[the transition plan](transition-plan-functions-to-container-apps.md). Delete
-stale Azure Functions terminology from active app docs as the implementation
-moves over to Container Apps.
+The transition is complete. Historical context lives in
+[the completed transition note](transition-plan-functions-to-container-apps.md);
+active app documentation should describe the Container Apps implementation.

@@ -7,7 +7,7 @@ and Native AOT. During local validation, that path proved to be a poor fit for
 Native AOT because the Functions worker/runtime layer caused issues that were
 outside the image-transfer application code.
 
-The project is now moving toward:
+The project now uses:
 
 - ASP.NET Core Minimal API;
 - Azure Container Apps;
@@ -21,8 +21,8 @@ Use these documents instead:
 
 - [End-to-end Container Apps tutorial](END_TO_END_CONTAINER_APP_TUTORIAL.md)
   for the fresh start-from-scratch guide.
-- [Transition plan](docs/transition-plan-functions-to-container-apps.md)
-  for migrating this repository from the old prototype.
+- [Completed transition note](docs/transition-plan-functions-to-container-apps.md)
+  for historical context.
 - [Architecture decision](docs/architecture-decision-container-apps.md)
   for the reasoning behind the platform choice.
 

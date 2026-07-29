@@ -88,12 +88,14 @@ Azure.
 
 Install these tools:
 
-- .NET 10 SDK;
+- .NET 11 Preview 3 SDK;
 - Docker Desktop;
 - Azure CLI;
 - Bicep support through Azure CLI;
 - Git;
 - an Azure subscription.
+
+.NET 11 and C# 15 are preview releases in this tutorial.
 
 Verify them:
 
@@ -189,8 +191,9 @@ Pin the SDK family so local and container builds agree.
 ```json
 {
   "sdk": {
-    "version": "10.0.100",
-    "rollForward": "latestFeature"
+    "version": "11.0.100-preview.3.26207.106",
+    "rollForward": "latestFeature",
+    "allowPrerelease": true
   },
   "test": {
     "runner": "Microsoft.Testing.Platform"
@@ -213,7 +216,7 @@ Use central package management so package versions are easy to review.
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="11.0.0-preview.3.26207.106" />
 
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
@@ -223,8 +226,8 @@ Use central package management so package versions are easy to review.
   <!-- Runtime transitive pins that are compatible with the direct package graph. -->
   <ItemGroup>
     <PackageVersion Include="Azure.Core" Version="1.60.0" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.Bcl.Cryptography" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0-preview.3.26207.106" />
+    <PackageVersion Include="Microsoft.Bcl.Cryptography" Version="11.0.0-preview.3.26207.106" />
     <PackageVersion Include="Microsoft.Identity.Client" Version="4.85.2" />
     <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.85.2" />
     <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.19.1" />
@@ -235,9 +238,9 @@ Use central package management so package versions are easy to review.
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.1" />
     <PackageVersion Include="System.ClientModel" Version="1.14.0" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
-    <PackageVersion Include="System.IO.Hashing" Version="10.0.9" />
-    <PackageVersion Include="System.Memory.Data" Version="10.0.9" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
+    <PackageVersion Include="System.IO.Hashing" Version="11.0.0-preview.3.26207.106" />
+    <PackageVersion Include="System.Memory.Data" Version="11.0.0-preview.3.26207.106" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="11.0.0-preview.3.26207.106" />
   </ItemGroup>
 </Project>
 ```
@@ -278,10 +281,10 @@ TestResults/
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>14.0</LangVersion>
+    <LangVersion>preview</LangVersion>
 
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
@@ -867,7 +870,7 @@ focused. For larger production uploads, consider direct-to-Blob uploads later.
 ```dockerfile
 # syntax=docker/dockerfile:1.7
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+FROM mcr.microsoft.com/dotnet/sdk:11.0-preview AS restore
 
 WORKDIR /repo
 
@@ -884,7 +887,7 @@ RUN dotnet publish src/ImageApi/ImageApi.csproj \
     /p:PublishAot=false \
     /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0-preview AS runtime
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
@@ -904,7 +907,7 @@ RUN dotnet publish src/ImageApi/ImageApi.csproj \
     /p:PublishAot=true \
     /p:InvariantGlobalization=true
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS aot-runtime
+FROM mcr.microsoft.com/dotnet/runtime-deps:11.0-preview AS aot-runtime
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
@@ -1000,10 +1003,10 @@ HTTP/1.1 200 OK
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LangVersion>14.0</LangVersion>
+    <LangVersion>preview</LangVersion>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

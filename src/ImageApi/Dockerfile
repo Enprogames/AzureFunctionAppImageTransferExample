@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+FROM mcr.microsoft.com/dotnet/sdk:11.0-preview AS restore
 
 WORKDIR /repo
 
@@ -18,7 +18,7 @@ RUN dotnet publish src/ImageApi/ImageApi.csproj \
     /p:PublishAot=false \
     /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0-preview AS runtime
 
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
@@ -41,7 +41,7 @@ RUN dotnet publish src/ImageApi/ImageApi.csproj \
     /p:PublishAot=true \
     /p:InvariantGlobalization=true
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS aot-runtime
+FROM mcr.microsoft.com/dotnet/runtime-deps:11.0-preview AS aot-runtime
 
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
